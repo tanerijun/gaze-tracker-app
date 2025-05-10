@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { DesktopCapturerSource } from 'electron'
 import JSZip from 'jszip'
+import fixWebmDuration from 'fix-webm-duration'
 
 export function GazeRecorder(): React.JSX.Element {
   const [isRecording, setIsRecording] = useState(false)
@@ -12,6 +13,7 @@ export function GazeRecorder(): React.JSX.Element {
   const webcamStreamRef = useRef<MediaStream>(null)
   const screenChunks = useRef<Blob[]>([])
   const webcamChunks = useRef<Blob[]>([])
+  const startTimeRef = useRef<number>(0)
 
   useEffect(() => {
     const getSources = async (): Promise<void> => {
@@ -58,8 +60,12 @@ export function GazeRecorder(): React.JSX.Element {
         video: true
       })
 
-      const screenMediaRecorder = new MediaRecorder(screenStream)
-      const webcamMediaRecorder = new MediaRecorder(webcamStream)
+      const screenMediaRecorder = new MediaRecorder(screenStream, {
+        mimeType: 'video/webm;codecs=vp9'
+      })
+      const webcamMediaRecorder = new MediaRecorder(webcamStream, {
+        mimeType: 'video/webm;codecs=vp9'
+      })
 
       screenChunks.current = []
       webcamChunks.current = []
@@ -76,8 +82,9 @@ export function GazeRecorder(): React.JSX.Element {
         }
       }
 
-      screenMediaRecorder.start()
-      webcamMediaRecorder.start()
+      screenMediaRecorder.start(1000)
+      webcamMediaRecorder.start(1000)
+      startTimeRef.current = Date.now()
 
       screenMediaRecorderRef.current = screenMediaRecorder
       webcamMediaRecorderRef.current = webcamMediaRecorder
@@ -92,11 +99,15 @@ export function GazeRecorder(): React.JSX.Element {
   }
 
   const stopRecording = async (): Promise<void> => {
+    const recordingDuration = Date.now() - startTimeRef.current
+
     const screenRecordingPromise = new Promise<Blob>((resolve) => {
       if (screenMediaRecorderRef.current) {
         screenMediaRecorderRef.current.onstop = () => {
-          const screenBlob = new Blob(screenChunks.current, { type: 'video/webm' })
-          resolve(screenBlob)
+          const screenBlob = new Blob(screenChunks.current, { type: 'video/webm;codecs=vp9' })
+          fixWebmDuration(screenBlob, recordingDuration, (fixedBlob) => {
+            resolve(fixedBlob)
+          })
         }
         screenMediaRecorderRef.current.stop()
       }
@@ -105,8 +116,10 @@ export function GazeRecorder(): React.JSX.Element {
     const webcamRecordingPromise = new Promise<Blob>((resolve) => {
       if (webcamMediaRecorderRef.current) {
         webcamMediaRecorderRef.current.onstop = () => {
-          const webcamBlob = new Blob(webcamChunks.current, { type: 'video/webm' })
-          resolve(webcamBlob)
+          const webcamBlob = new Blob(webcamChunks.current, { type: 'video/webm;codecs=vp9' })
+          fixWebmDuration(webcamBlob, recordingDuration, (fixedBlob) => {
+            resolve(fixedBlob)
+          })
         }
         webcamMediaRecorderRef.current.stop()
       }
