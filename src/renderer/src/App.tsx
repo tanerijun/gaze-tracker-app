@@ -1,8 +1,9 @@
+import { GazeRecorder } from './components/GazeRecorder'
+
 function App(): React.JSX.Element {
   return (
-    <div className="text-red-500">
-      Hello world
-      <button className="btn">Click me</button>
+    <div className="container mx-auto p-4">
+      <GazeRecorder />
     </div>
   )
 }
