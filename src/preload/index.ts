@@ -8,6 +8,8 @@ export interface CustomAPI {
   onRecordingStarted: (callback: () => void) => void
   onRecordingStopped: (callback: () => void) => void
   removeListeners: () => void
+  startCalibration: () => Promise<void>
+  stopCalibration: () => Promise<void>
 }
 
 // Custom APIs for renderer
@@ -22,7 +24,10 @@ const api: CustomAPI = {
   removeListeners: () => {
     ipcRenderer.removeAllListeners('RECORDING_STARTED')
     ipcRenderer.removeAllListeners('RECORDING_STOPPED')
-  }
+  },
+
+  startCalibration: () => ipcRenderer.invoke('START_CALIBRATION'),
+  stopCalibration: () => ipcRenderer.invoke('STOP_CALIBRATION')
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

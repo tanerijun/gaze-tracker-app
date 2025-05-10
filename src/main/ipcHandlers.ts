@@ -21,4 +21,20 @@ export function setupIPCHandlers(mainWindow: BrowserWindow): void {
   ipcMain.on('STOP_RECORDING', () => {
     mainWindow.webContents.send('RECORDING_STOPPED')
   })
+
+  ipcMain.handle('START_CALIBRATION', async () => {
+    return new Promise<void>((resolve) => {
+      mainWindow.setFullScreen(true)
+      mainWindow.webContents.send('CALIBRATION_STARTED')
+      resolve()
+    })
+  })
+
+  ipcMain.handle('STOP_CALIBRATION', async () => {
+    return new Promise<void>((resolve) => {
+      mainWindow.setFullScreen(false)
+      mainWindow.webContents.send('CALIBRATION_STOPPED')
+      resolve()
+    })
+  })
 }

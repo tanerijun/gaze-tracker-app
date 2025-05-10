@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { DesktopCapturerSource } from 'electron'
 import JSZip from 'jszip'
 import fixWebmDuration from 'fix-webm-duration'
+import { Nav } from './Nav'
 
 export function GazeRecorder(): React.JSX.Element {
   const [isRecording, setIsRecording] = useState(false)
@@ -164,7 +165,9 @@ export function GazeRecorder(): React.JSX.Element {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Gaze Tracker</h1>
+      <Nav />
+
+      <h1 className="text-2xl font-bold my-4">Gaze Tracker</h1>
 
       <div className="mb-4">
         <select
