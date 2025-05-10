@@ -25,7 +25,8 @@
     "@electron-toolkit/utils": "^4.0.0",
     "electron-updater": "^6.3.9",
     "fix-webm-duration": "^1.0.6",
-    "jszip": "^3.10.1"
+    "jszip": "^3.10.1",
+    "react-router": "^7.6.0"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
