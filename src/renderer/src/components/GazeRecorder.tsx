@@ -31,13 +31,13 @@ export function GazeRecorder(): React.JSX.Element {
 
     window.api.onRecordingStopped(() => {
       console.log('Recording stopped')
+      stopRecording()
     })
 
     return () => {
       window.api.removeListeners()
       stopRecording()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const startRecording = async (): Promise<void> => {
@@ -92,8 +92,6 @@ export function GazeRecorder(): React.JSX.Element {
   }
 
   const stopRecording = async (): Promise<void> => {
-    if (!isRecording) return
-
     const screenRecordingPromise = new Promise<Blob>((resolve) => {
       if (screenMediaRecorderRef.current) {
         screenMediaRecorderRef.current.onstop = () => {

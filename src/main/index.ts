@@ -1,8 +1,37 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
-import { join } from 'path'
+import { app, shell, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from 'electron'
+import path from 'node:path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { setupIPCHandlers } from './ipcHandlers'
+
+function createTray(mainWindow: BrowserWindow): void {
+  const image = nativeImage.createFromPath(path.join(__dirname, '../../resources/icon.png'))
+  const tray = new Tray(image.resize({ width: 16, height: 16 }))
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Stop Recording',
+      click: () => {
+        mainWindow.webContents.send('RECORDING_STOPPED')
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Show App',
+      click: () => {
+        mainWindow.show()
+      }
+    },
+    {
+      label: 'Quit',
+      click: () => {
+        app.quit()
+      }
+    }
+  ])
+
+  tray.setToolTip('Gaze Tracker')
+  tray.setContextMenu(contextMenu)
+}
 
 function createWindow(): void {
   // Create the browser window.
@@ -13,13 +42,14 @@ function createWindow(): void {
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: path.join(__dirname, '../preload/index.js'),
       sandbox: false
     }
   })
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+    createTray(mainWindow)
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -32,7 +62,7 @@ function createWindow(): void {
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
 
   setupIPCHandlers(mainWindow)
