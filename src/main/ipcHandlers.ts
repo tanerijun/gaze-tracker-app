@@ -24,17 +24,27 @@ export function setupIPCHandlers(mainWindow: BrowserWindow): void {
 
   ipcMain.handle('START_CALIBRATION', async () => {
     return new Promise<void>((resolve) => {
+      const onEnterFullScreen = (): void => {
+        mainWindow.webContents.send('CALIBRATION_STARTED')
+        mainWindow.removeListener('enter-full-screen', onEnterFullScreen)
+        resolve()
+      }
+
+      mainWindow.on('enter-full-screen', onEnterFullScreen)
       mainWindow.setFullScreen(true)
-      mainWindow.webContents.send('CALIBRATION_STARTED')
-      resolve()
     })
   })
 
   ipcMain.handle('STOP_CALIBRATION', async () => {
     return new Promise<void>((resolve) => {
+      const onLeaveFullScreen = (): void => {
+        mainWindow.webContents.send('CALIBRATION_STOPPED')
+        mainWindow.removeListener('leave-full-screen', onLeaveFullScreen)
+        resolve()
+      }
+
+      mainWindow.on('leave-full-screen', onLeaveFullScreen)
       mainWindow.setFullScreen(false)
-      mainWindow.webContents.send('CALIBRATION_STOPPED')
-      resolve()
     })
   })
 }
