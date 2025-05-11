@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import JSZip from 'jszip'
 import fixWebmDuration from 'fix-webm-duration'
-import { Nav } from './Nav'
+import { Nav } from '../components/Nav'
 
 interface Point {
   x: number

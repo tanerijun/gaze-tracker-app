@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { DesktopCapturerSource } from 'electron'
 import JSZip from 'jszip'
 import fixWebmDuration from 'fix-webm-duration'
-import { Nav } from './Nav'
+import { Nav } from '../components/Nav'
 
 export function GazeRecorder(): React.JSX.Element {
   const [isRecording, setIsRecording] = useState(false)

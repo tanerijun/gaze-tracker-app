@@ -1,6 +1,6 @@
 import { HashRouter, Route, Routes } from 'react-router'
-import { GazeRecorder } from './components/GazeRecorder'
-import { Calibration } from './components/Calibration'
+import { GazeRecorder } from './screens/GazeRecorder'
+import { Calibration } from './screens/Calibration'
 
 function App(): React.JSX.Element {
   return (
