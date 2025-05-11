@@ -1,0 +1,7 @@
+[project]
+name = "gaze-tracker-app-backend"
+version = "0.1.0"
+description = "Backend for gaze tracker app"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
