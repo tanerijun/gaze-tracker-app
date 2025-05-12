@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react'
 import JSZip from 'jszip'
-import fixWebmDuration from 'fix-webm-duration'
 import { Nav } from '../components/Nav'
 
 interface Point {
@@ -51,7 +50,7 @@ export function Calibration(): React.JSX.Element {
       })
 
       const webcamMediaRecorder = new MediaRecorder(webcamStream, {
-        mimeType: 'video/webm;codecs=vp9'
+        mimeType: 'video/mp4'
       })
 
       webcamChunks.current = []
@@ -81,17 +80,18 @@ export function Calibration(): React.JSX.Element {
   }
 
   const stopCalibration = async (): Promise<void> => {
-    await window.api.stopCalibration()
+    const screenSize = {
+      width: window.innerWidth,
+      height: window.innerHeight
+    }
 
-    const recordingDuration = Date.now() - startTimeRef.current
+    await window.api.stopCalibration()
 
     const webcamRecordingPromise = new Promise<Blob>((resolve) => {
       if (webcamMediaRecorderRef.current) {
         webcamMediaRecorderRef.current.onstop = () => {
-          const webcamBlob = new Blob(webcamChunks.current, { type: 'video/webm;codecs=vp9' })
-          fixWebmDuration(webcamBlob, recordingDuration, (fixedBlob) => {
-            resolve(fixedBlob)
-          })
+          const webcamBlob = new Blob(webcamChunks.current, { type: 'video/mp4' })
+          resolve(webcamBlob)
         }
         webcamMediaRecorderRef.current.stop()
       }
@@ -107,13 +107,10 @@ export function Calibration(): React.JSX.Element {
       const zip = new JSZip()
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
 
-      zip.file('webcam-recording.webm', webcamBlob)
+      zip.file('webcam-recording.mp4', webcamBlob)
 
       const calibrationData = {
-        screenSize: {
-          width: window.innerWidth,
-          height: window.innerHeight
-        },
+        screenSize,
         points: clickedPointsRef.current
       }
       zip.file('calibration-data.json', JSON.stringify(calibrationData, null, 2))

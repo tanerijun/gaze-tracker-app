@@ -12,9 +12,9 @@ def main():
     parser.add_argument('zip_path', help='Path to recording zip file')
     parser.add_argument('calibration_zip', help='Path to calibration zip file')
     parser.add_argument('mapper_path', help='Path to trained mapper model')
-    parser.add_argument('--output', '-o', help='Output video path', default='gaze_heatmap.webm')
-    parser.add_argument('--sigma', type=float, default=50, help='Heatmap blur sigma')
-    parser.add_argument('--alpha', type=float, default=0.6, help='Heatmap opacity')
+    parser.add_argument('--output', '-o', help='Output video path', default='gaze_heatmap.mp4')
+    parser.add_argument('--sigma', type=float, default=25, help='Heatmap blur sigma')
+    parser.add_argument('--alpha', type=float, default=0.4, help='Heatmap opacity')
     args = parser.parse_args()
 
     # Extract zip to temp directory
@@ -29,13 +29,12 @@ def main():
 
         processor = GazeVideoProcessor(args.mapper_path)
         processor.process_videos(
-            webcam_path=os.path.join(temp_dir, "webcam-recording.webm"),
-            screen_path=os.path.join(temp_dir, "screen-recording.webm"),
+            webcam_path=os.path.join(temp_dir, "webcam-recording.mp4"),
+            screen_path=os.path.join(temp_dir, "screen-recording.mp4"),
             calibration_data_path=os.path.join(calib_temp, "calibration-data.json"),
             output_path=args.output,
             heatmap_sigma=args.sigma,
             alpha=args.alpha,
-            save_interval=30
         )
 
         print(f"Processed video saved to: {args.output}")

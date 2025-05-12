@@ -21,7 +21,7 @@ def main():
             zip_ref.extractall(temp_dir)
 
         csv_path = process_calibration_data(
-            video_path=os.path.join(temp_dir, "webcam-recording.webm"),
+            video_path=os.path.join(temp_dir, "webcam-recording.mp4"),
             calibration_data_path=os.path.join(temp_dir, "calibration-data.json"),
             output_dir=args.output
         )

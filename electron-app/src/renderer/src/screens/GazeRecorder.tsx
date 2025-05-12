@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { DesktopCapturerSource } from 'electron'
 import JSZip from 'jszip'
-import fixWebmDuration from 'fix-webm-duration'
 import { Nav } from '../components/Nav'
 
 export function GazeRecorder(): React.JSX.Element {
@@ -14,7 +13,6 @@ export function GazeRecorder(): React.JSX.Element {
   const webcamStreamRef = useRef<MediaStream>(null)
   const screenChunks = useRef<Blob[]>([])
   const webcamChunks = useRef<Blob[]>([])
-  const startTimeRef = useRef<number>(0)
 
   useEffect(() => {
     const getSources = async (): Promise<void> => {
@@ -51,21 +49,30 @@ export function GazeRecorder(): React.JSX.Element {
           // @ts-ignore Electron-Chrome API mismatch - https://github.com/electron/electron/issues/27139
           mandatory: {
             chromeMediaSource: 'desktop',
-            chromeMediaSourceId: selectedSource
+            chromeMediaSourceId: selectedSource,
+            minFrameRate: 30,
+            maxFrameRate: 30
           }
         }
       })
 
       const webcamStream = await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: true
+        video: {
+          frameRate: {
+            ideal: 30,
+            min: 30
+          }
+        }
       })
 
       const screenMediaRecorder = new MediaRecorder(screenStream, {
-        mimeType: 'video/webm;codecs=vp9'
+        mimeType: 'video/mp4',
+        videoBitsPerSecond: 2500000
       })
       const webcamMediaRecorder = new MediaRecorder(webcamStream, {
-        mimeType: 'video/webm;codecs=vp9'
+        mimeType: 'video/mp4',
+        videoBitsPerSecond: 2500000
       })
 
       screenChunks.current = []
@@ -85,7 +92,6 @@ export function GazeRecorder(): React.JSX.Element {
 
       screenMediaRecorder.start(1000)
       webcamMediaRecorder.start(1000)
-      startTimeRef.current = Date.now()
 
       screenMediaRecorderRef.current = screenMediaRecorder
       webcamMediaRecorderRef.current = webcamMediaRecorder
@@ -100,15 +106,11 @@ export function GazeRecorder(): React.JSX.Element {
   }
 
   const stopRecording = async (): Promise<void> => {
-    const recordingDuration = Date.now() - startTimeRef.current
-
     const screenRecordingPromise = new Promise<Blob>((resolve) => {
       if (screenMediaRecorderRef.current) {
         screenMediaRecorderRef.current.onstop = () => {
-          const screenBlob = new Blob(screenChunks.current, { type: 'video/webm;codecs=vp9' })
-          fixWebmDuration(screenBlob, recordingDuration, (fixedBlob) => {
-            resolve(fixedBlob)
-          })
+          const screenBlob = new Blob(screenChunks.current, { type: 'video/mp4' })
+          resolve(screenBlob)
         }
         screenMediaRecorderRef.current.stop()
       }
@@ -117,10 +119,8 @@ export function GazeRecorder(): React.JSX.Element {
     const webcamRecordingPromise = new Promise<Blob>((resolve) => {
       if (webcamMediaRecorderRef.current) {
         webcamMediaRecorderRef.current.onstop = () => {
-          const webcamBlob = new Blob(webcamChunks.current, { type: 'video/webm;codecs=vp9' })
-          fixWebmDuration(webcamBlob, recordingDuration, (fixedBlob) => {
-            resolve(fixedBlob)
-          })
+          const webcamBlob = new Blob(webcamChunks.current, { type: 'video/mp4' })
+          resolve(webcamBlob)
         }
         webcamMediaRecorderRef.current.stop()
       }
@@ -142,8 +142,8 @@ export function GazeRecorder(): React.JSX.Element {
     try {
       const zip = new JSZip()
 
-      zip.file('screen-recording.webm', screenBlob)
-      zip.file('webcam-recording.webm', webcamBlob)
+      zip.file('screen-recording.mp4', screenBlob)
+      zip.file('webcam-recording.mp4', webcamBlob)
 
       const zipBlob = await zip.generateAsync({ type: 'blob' })
       const zipUrl = URL.createObjectURL(zipBlob)
