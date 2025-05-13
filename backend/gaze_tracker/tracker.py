@@ -7,25 +7,27 @@ from datetime import datetime
 from .gaze_estimator import RoboflowGazeEstimator
 from .mapper import GazeMapper
 
-class GazeVideoProcessor:
-    def __init__(self, mapper_path: str):
+class GazeTracker:
+    """
+    GazeTracker processes webcam and screen recordings to generate a heatmap video of gaze data.
+    """
+    def __init__(self, mapper: GazeMapper):
         self.gaze_estimator = RoboflowGazeEstimator()
-        self.mapper = GazeMapper.load(mapper_path)
+        self.mapper = mapper
 
     def process_videos(
         self,
         webcam_path: str,
         screen_path: str,
-        calibration_data_path: str,
         output_path: str,
-        heatmap_sigma: float = 50,
-        alpha: float = 0.6,
+        heatmap_sigma: float = 40,
+        alpha: float = 0.5,
     ) -> None:
-        with open(calibration_data_path) as f:
-            calib_data = json.load(f)
+        if self.mapper.screen_size is None:
+            raise ValueError("Screen size must be set in the mapper before processing videos.")
 
-        target_width = calib_data['screenSize']['width']
-        target_height = calib_data['screenSize']['height']
+        target_width = self.mapper.screen_size["width"]
+        target_height = self.mapper.screen_size["height"]
 
         webcam = cv2.VideoCapture(webcam_path)
         screen = cv2.VideoCapture(screen_path)
@@ -69,8 +71,6 @@ class GazeVideoProcessor:
                 if webcam_frame is None or screen_frame is None:
                     print(f"Frame {frame_count}: None frame detected")
                     continue
-
-                print(f"Processing frame {frame_count}: Webcam shape {webcam_frame.shape}, Screen shape {screen_frame.shape}")
 
                 gaze_result, gaze_vector = self.gaze_estimator.process_frame(webcam_frame)
 

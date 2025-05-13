@@ -8,13 +8,15 @@ from typing import Dict, Any, Tuple
 
 class RoboflowGazeEstimator:
     def __init__(self):
-        load_dotenv()
-        self.api_key = os.getenv("ROBOFLOW_API_KEY")
-        if not self.api_key:
-            raise ValueError("ROBOFLOW_API_KEY not found")
-        self.base_url = "http://127.0.0.1:9001"
+        self.base_url = "http://127.0.0.1:9001" # to Roboflow inference server
 
     def process_frame(self, frame: np.ndarray) -> Tuple[Dict[str, Any], np.ndarray]:
+        """
+        Process a single frame to detect gaze and convert it to a 3D vector.
+
+        Returns:
+            Tuple[Dict[str, Any], np.ndarray]: A tuple containing the gaze detection result and the gaze vector.
+        """
         # Convert frame to base64
         _, buffer = cv2.imencode('.jpg', frame)
         img_base64 = base64.b64encode(buffer).decode('utf-8')
@@ -46,7 +48,6 @@ class RoboflowGazeEstimator:
         response = requests.post(
             f"{self.base_url}/gaze/gaze_detection",
             json={
-                "api_key": self.api_key,
                 "image": {"type": "base64", "value": img_base64}
             }
         )
