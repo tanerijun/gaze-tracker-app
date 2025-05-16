@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import type { DesktopCapturerSource } from 'electron'
-import JSZip from 'jszip'
 import { Nav } from '../components/Nav'
+import { Muxer, ArrayBufferTarget } from 'webm-muxer'
+import JSZip from 'jszip'
 
 export function GazeRecorder(): React.JSX.Element {
   const [isRecording, setIsRecording] = useState(false)
   const [sources, setSources] = useState<DesktopCapturerSource[]>([])
   const [selectedSource, setSelectedSource] = useState<string | null>(null)
-  const screenMediaRecorderRef = useRef<MediaRecorder>(null)
-  const webcamMediaRecorderRef = useRef<MediaRecorder>(null)
-  const streamRef = useRef<MediaStream>(null)
+  const screenStreamRef = useRef<MediaStream>(null)
   const webcamStreamRef = useRef<MediaStream>(null)
-  const screenChunks = useRef<Blob[]>([])
-  const webcamChunks = useRef<Blob[]>([])
+  const screenEncoderRef = useRef<VideoEncoder>(null)
+  const webcamEncoderRef = useRef<VideoEncoder>(null)
+  const screenMuxerRef = useRef<Muxer<ArrayBufferTarget>>(null)
+  const webcamMuxerRef = useRef<Muxer<ArrayBufferTarget>>(null)
 
   useEffect(() => {
     const getSources = async (): Promise<void> => {
@@ -66,37 +67,69 @@ export function GazeRecorder(): React.JSX.Element {
         }
       })
 
-      const screenMediaRecorder = new MediaRecorder(screenStream, {
-        mimeType: 'video/mp4',
-        videoBitsPerSecond: 2500000
+      const screenMuxer = new Muxer({
+        target: new ArrayBufferTarget(),
+        video: {
+          codec: 'V_VP9',
+          width: screenStream.getVideoTracks()[0].getSettings().width!,
+          height: screenStream.getVideoTracks()[0].getSettings().height!,
+          frameRate: 30
+        },
+        firstTimestampBehavior: 'offset'
       })
-      const webcamMediaRecorder = new MediaRecorder(webcamStream, {
-        mimeType: 'video/mp4',
-        videoBitsPerSecond: 2500000
+
+      const webcamMuxer = new Muxer({
+        target: new ArrayBufferTarget(),
+        video: {
+          codec: 'V_VP9',
+          width: webcamStream.getVideoTracks()[0].getSettings().width!,
+          height: webcamStream.getVideoTracks()[0].getSettings().height!,
+          frameRate: 30
+        },
+        firstTimestampBehavior: 'offset'
       })
 
-      screenChunks.current = []
-      webcamChunks.current = []
-
-      screenMediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          screenChunks.current.push(event.data)
+      const screenEncoder = new VideoEncoder({
+        output: (chunk: EncodedVideoChunk, metadata?: EncodedVideoChunkMetadata) => {
+          screenMuxer.addVideoChunk(chunk, metadata)
+        },
+        error: (e: Error) => {
+          console.error(e)
         }
-      }
+      })
 
-      webcamMediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          webcamChunks.current.push(event.data)
+      const webcamEncoder = new VideoEncoder({
+        output: (chunk: EncodedVideoChunk, metadata?: EncodedVideoChunkMetadata) => {
+          webcamMuxer.addVideoChunk(chunk, metadata)
+        },
+        error: (e: Error) => {
+          console.error(e)
         }
-      }
+      })
 
-      screenMediaRecorder.start(1000)
-      webcamMediaRecorder.start(1000)
+      screenEncoder.configure({
+        codec: 'vp09.00.10.08',
+        width: screenStream.getVideoTracks()[0].getSettings().width!,
+        height: screenStream.getVideoTracks()[0].getSettings().height!,
+        bitrate: 2500000
+      })
 
-      screenMediaRecorderRef.current = screenMediaRecorder
-      webcamMediaRecorderRef.current = webcamMediaRecorder
-      streamRef.current = screenStream
+      webcamEncoder.configure({
+        codec: 'vp09.00.10.08',
+        width: webcamStream.getVideoTracks()[0].getSettings().width!,
+        height: webcamStream.getVideoTracks()[0].getSettings().height!,
+        bitrate: 2500000
+      })
+
+      screenEncoderRef.current = screenEncoder
+      webcamEncoderRef.current = webcamEncoder
+      screenMuxerRef.current = screenMuxer
+      webcamMuxerRef.current = webcamMuxer
+      screenStreamRef.current = screenStream
       webcamStreamRef.current = webcamStream
+
+      processVideoFrames(screenStream, screenEncoder)
+      processVideoFrames(webcamStream, webcamEncoder)
 
       setIsRecording(true)
       window.api.startRecording()
@@ -105,45 +138,61 @@ export function GazeRecorder(): React.JSX.Element {
     }
   }
 
+  const processVideoFrames = (stream: MediaStream, encoder: VideoEncoder): void => {
+    const track = stream.getVideoTracks()[0]
+    const processor = new MediaStreamTrackProcessor({ track })
+    const reader = processor.readable.getReader()
+
+    const readChunk = async (): Promise<void> => {
+      try {
+        const { done, value } = await reader.read()
+        if (done) return
+
+        if (value) {
+          encoder.encode(value, { keyFrame: false })
+          value.close()
+        }
+        readChunk()
+      } catch (error) {
+        console.error('Error reading video chunk:', error)
+      }
+    }
+
+    readChunk()
+  }
+
   const stopRecording = async (): Promise<void> => {
-    const screenRecordingPromise = new Promise<Blob>((resolve) => {
-      if (screenMediaRecorderRef.current) {
-        screenMediaRecorderRef.current.onstop = () => {
-          const screenBlob = new Blob(screenChunks.current, { type: 'video/mp4' })
-          resolve(screenBlob)
-        }
-        screenMediaRecorderRef.current.stop()
-      }
-    })
-
-    const webcamRecordingPromise = new Promise<Blob>((resolve) => {
-      if (webcamMediaRecorderRef.current) {
-        webcamMediaRecorderRef.current.onstop = () => {
-          const webcamBlob = new Blob(webcamChunks.current, { type: 'video/mp4' })
-          resolve(webcamBlob)
-        }
-        webcamMediaRecorderRef.current.stop()
-      }
-    })
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop())
-    }
-
-    if (webcamStreamRef.current) {
-      webcamStreamRef.current.getTracks().forEach((track) => track.stop())
-    }
-
-    const [screenBlob, webcamBlob] = await Promise.all([
-      screenRecordingPromise,
-      webcamRecordingPromise
-    ])
-
     try {
-      const zip = new JSZip()
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach((track) => track.stop())
+      }
+      if (webcamStreamRef.current) {
+        webcamStreamRef.current.getTracks().forEach((track) => track.stop())
+      }
 
-      zip.file('screen-recording.mp4', screenBlob)
-      zip.file('webcam-recording.mp4', webcamBlob)
+      const screenMuxer = screenMuxerRef.current
+      const webcamMuxer = webcamMuxerRef.current
+      const screenEncoder = screenEncoderRef.current
+      const webcamEncoder = webcamEncoderRef.current
+
+      if (!screenMuxer || !webcamMuxer || !screenEncoder || !webcamEncoder) {
+        return
+      }
+
+      await screenEncoder.flush()
+      screenEncoderRef.current = null
+      await webcamEncoder.flush()
+      webcamEncoderRef.current = null
+
+      screenMuxer.finalize()
+      webcamMuxer.finalize()
+
+      const screenBuffer = screenMuxer.target.buffer
+      const webcamBuffer = webcamMuxer.target.buffer
+
+      const zip = new JSZip()
+      zip.file('screen-recording.webm', screenBuffer)
+      zip.file('webcam-recording.webm', webcamBuffer)
 
       const zipBlob = await zip.generateAsync({ type: 'blob' })
       const zipUrl = URL.createObjectURL(zipBlob)
@@ -155,8 +204,6 @@ export function GazeRecorder(): React.JSX.Element {
       URL.revokeObjectURL(zipUrl)
 
       setIsRecording(false)
-      screenChunks.current = []
-      webcamChunks.current = []
       window.api.stopRecording()
     } catch (error) {
       console.error('Error creating recording zip:', error)

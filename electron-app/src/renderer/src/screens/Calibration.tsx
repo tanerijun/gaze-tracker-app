@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
-import JSZip from 'jszip'
 import { Nav } from '../components/Nav'
+import { Muxer, ArrayBufferTarget } from 'webm-muxer'
+import JSZip from 'jszip'
 
 interface Point {
   x: number
@@ -35,11 +36,11 @@ export function Calibration(): React.JSX.Element {
   const [isCalibrating, setIsCalibrating] = useState(false)
   const [currentPointIndex, setCurrentPointIndex] = useState(-1)
   const [points, setPoints] = useState<{ x: number; y: number }[]>([])
-  const clickedPointsRef = useRef<CalibrationPoint[]>([])
   const [isPointClicked, setIsPointClicked] = useState(false)
-  const webcamMediaRecorderRef = useRef<MediaRecorder>(null)
+  const clickedPointsRef = useRef<CalibrationPoint[]>([])
   const webcamStreamRef = useRef<MediaStream>(null)
-  const webcamChunks = useRef<Blob[]>([])
+  const webcamMuxerRef = useRef<Muxer<ArrayBufferTarget>>(null)
+  const webcamEncoderRef = useRef<VideoEncoder>(null)
   const startTimeRef = useRef<number>(0)
 
   const startCalibration = async (): Promise<void> => {
@@ -49,24 +50,36 @@ export function Calibration(): React.JSX.Element {
         audio: false
       })
 
-      const webcamMediaRecorder = new MediaRecorder(webcamStream, {
-        mimeType: 'video/mp4'
+      const webcamMuxer = new Muxer({
+        target: new ArrayBufferTarget(),
+        video: {
+          codec: 'V_VP9',
+          width: webcamStream.getVideoTracks()[0].getSettings().width!,
+          height: webcamStream.getVideoTracks()[0].getSettings().height!,
+          frameRate: 30
+        },
+        firstTimestampBehavior: 'offset'
       })
 
-      webcamChunks.current = []
+      const webcamEncoder = new VideoEncoder({
+        output: (chunk: EncodedVideoChunk, metadata?: EncodedVideoChunkMetadata) =>
+          webcamMuxer.addVideoChunk(chunk, metadata),
+        error: (e: Error) => console.error(e)
+      })
 
-      webcamMediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          webcamChunks.current.push(event.data)
-        }
-      }
+      webcamEncoder.configure({
+        codec: 'vp09.00.10.08',
+        width: webcamStream.getVideoTracks()[0].getSettings().width!,
+        height: webcamStream.getVideoTracks()[0].getSettings().height!,
+        bitrate: 2500000
+      })
 
-      webcamMediaRecorder.start(1000)
-      startTimeRef.current = Date.now()
-
-      webcamMediaRecorderRef.current = webcamMediaRecorder
+      webcamEncoderRef.current = webcamEncoder
+      webcamMuxerRef.current = webcamMuxer
       webcamStreamRef.current = webcamStream
 
+      processVideoFrames(webcamStream, webcamEncoder)
+      startTimeRef.current = Date.now()
       setIsCalibrating(true)
       await window.api.startCalibration()
 
@@ -79,6 +92,29 @@ export function Calibration(): React.JSX.Element {
     }
   }
 
+  const processVideoFrames = (stream: MediaStream, encoder: VideoEncoder): void => {
+    const track = stream.getVideoTracks()[0]
+    const processor = new MediaStreamTrackProcessor({ track })
+    const reader = processor.readable.getReader()
+
+    const readChunk = async (): Promise<void> => {
+      try {
+        const { done, value } = await reader.read()
+        if (done) return
+
+        if (value) {
+          encoder.encode(value, { keyFrame: false })
+          value.close()
+        }
+        readChunk()
+      } catch (error) {
+        console.error('Error reading video chunk:', error)
+      }
+    }
+
+    readChunk()
+  }
+
   const stopCalibration = async (): Promise<void> => {
     const screenSize = {
       width: window.innerWidth,
@@ -87,27 +123,27 @@ export function Calibration(): React.JSX.Element {
 
     await window.api.stopCalibration()
 
-    const webcamRecordingPromise = new Promise<Blob>((resolve) => {
-      if (webcamMediaRecorderRef.current) {
-        webcamMediaRecorderRef.current.onstop = () => {
-          const webcamBlob = new Blob(webcamChunks.current, { type: 'video/mp4' })
-          resolve(webcamBlob)
-        }
-        webcamMediaRecorderRef.current.stop()
-      }
-    })
-
     if (webcamStreamRef.current) {
       webcamStreamRef.current.getTracks().forEach((track) => track.stop())
     }
 
-    const webcamBlob = await webcamRecordingPromise
+    const webcamEncoder = webcamEncoderRef.current
+    const webcamMuxer = webcamMuxerRef.current
+
+    if (!webcamEncoder || !webcamMuxer) {
+      return
+    }
+
+    await webcamEncoder.flush()
+    webcamMuxer.finalize()
+
+    const webcamBuffer = webcamMuxer.target.buffer
 
     try {
       const zip = new JSZip()
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
 
-      zip.file('webcam-recording.mp4', webcamBlob)
+      zip.file('webcam-recording.webm', webcamBuffer)
 
       const calibrationData = {
         screenSize,
@@ -126,7 +162,8 @@ export function Calibration(): React.JSX.Element {
       setIsCalibrating(false)
       setCurrentPointIndex(-1)
       clickedPointsRef.current = []
-      webcamChunks.current = []
+      webcamEncoderRef.current = null
+      webcamMuxerRef.current = null
     } catch (error) {
       console.error('Error creating calibration zip:', error)
     }

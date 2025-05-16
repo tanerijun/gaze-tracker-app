@@ -33,7 +33,7 @@ def process_gaze_data(
 
         print("Processing calibration data...")
         mapper.load_calibration_data(
-            video_path=f"{temp_dir}/webcam-recording.mp4",
+            video_path=f"{temp_dir}/webcam-recording.webm",
             calibration_data_path=f"{temp_dir}/calibration-data.json",
         )
 
@@ -47,8 +47,8 @@ def process_gaze_data(
 
         gaze_tracker = GazeTracker(mapper)
         gaze_tracker.process_videos(
-            webcam_path=f"{temp_dir}/webcam-recording.mp4",
-            screen_path=f"{temp_dir}/screen-recording.mp4",
+            webcam_path=f"{temp_dir}/webcam-recording.webm",
+            screen_path=f"{temp_dir}/screen-recording.webm",
             output_path=output_path,
             heatmap_sigma=heatmap_sigma,
             alpha=heatmap_alpha
