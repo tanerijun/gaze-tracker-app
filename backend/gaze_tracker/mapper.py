@@ -1,16 +1,19 @@
-from sklearn.linear_model import LinearRegression
-import pandas as pd
-import numpy as np
-from pathlib import Path
 import json
-import cv2
 from typing import Dict, Tuple
+
+import cv2
+import numpy as np
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+
 from .gaze_estimator import RoboflowGazeEstimator
+
 
 class GazeMapper:
     """
     Maps gaze vectors to screen coordinates using linear regression.
     """
+
     def __init__(self):
         self.model_x = LinearRegression()
         self.model_y = LinearRegression()
@@ -30,20 +33,17 @@ class GazeMapper:
         df = self.calibration_data
 
         # Prepare features (gaze vectors) and labels (screen coordinates)
-        X = df[['gaze_x', 'gaze_y', 'gaze_z']].values
-        y = df[['point_x', 'point_y']].values
+        X = df[["gaze_x", "gaze_y", "gaze_z"]].values
+        _y = df[["point_x", "point_y"]].values
 
-        y_x = df['point_x'].values
-        y_y = df['point_y'].values
+        y_x = df["point_x"].values
+        y_y = df["point_y"].values
 
         self.model_x.fit(X, y_x)
         self.model_y.fit(X, y_y)
 
         # Return R² scores
-        return (
-            float(self.model_x.score(X, y_x)),
-            float(self.model_y.score(X, y_y))
-        )
+        return (float(self.model_x.score(X, y_x)), float(self.model_y.score(X, y_y)))
 
     def predict(self, gaze_vector: np.ndarray) -> np.ndarray:
         """
@@ -56,10 +56,7 @@ class GazeMapper:
             np.ndarray: Predicted screen coordinates [x, y]
         """
         X = gaze_vector.reshape(1, -1)
-        return np.array([
-            self.model_x.predict(X)[0],
-            self.model_y.predict(X)[0]
-        ])
+        return np.array([self.model_x.predict(X)[0], self.model_y.predict(X)[0]])
 
     def load_calibration_data(
         self,
@@ -87,15 +84,15 @@ class GazeMapper:
             calib_data = json.load(f)
 
         self.screen_size = {
-            'width': calib_data['screenSize']['width'],
-            'height': calib_data['screenSize']['height']
+            "width": calib_data["screenSize"]["width"],
+            "height": calib_data["screenSize"]["height"],
         }
 
         dataset = []
         gaze_estimator = RoboflowGazeEstimator()
 
-        for point in calib_data['points']:
-            timestamp_sec = point['timestamp'] / 1000.0
+        for point in calib_data["points"]:
+            timestamp_sec = point["timestamp"] / 1000.0
             click_frame = int(timestamp_sec * fps)
 
             # Calculate frame range
@@ -110,14 +107,16 @@ class GazeMapper:
 
                 _, gaze_vector = gaze_estimator.process_frame(frame)
 
-                dataset.append({
-                    'frame': frame_idx,
-                    'point_x': point['x'],
-                    'point_y': point['y'],
-                    'gaze_x': gaze_vector[0],
-                    'gaze_y': gaze_vector[1],
-                    'gaze_z': gaze_vector[2]
-                })
+                dataset.append(
+                    {
+                        "frame": frame_idx,
+                        "point_x": point["x"],
+                        "point_y": point["y"],
+                        "gaze_x": gaze_vector[0],
+                        "gaze_y": gaze_vector[1],
+                        "gaze_z": gaze_vector[2],
+                    }
+                )
 
         video.release()
 

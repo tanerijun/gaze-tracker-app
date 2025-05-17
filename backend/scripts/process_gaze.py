@@ -1,19 +1,21 @@
 import argparse
+import sys
 import tempfile
 import zipfile
 from pathlib import Path
-import sys
+
 sys.path.append(str(Path(__file__).parent.parent))
 
 from gaze_tracker.mapper import GazeMapper
 from gaze_tracker.tracker import GazeTracker
+
 
 def process_gaze_data(
     recording_zip: str,
     calibration_zip: str,
     output_path: str,
     heatmap_sigma: float = 25,
-    heatmap_alpha: float = 0.4
+    heatmap_alpha: float = 0.4,
 ) -> None:
     """
     End-to-end gaze data processing pipeline.
@@ -26,7 +28,7 @@ def process_gaze_data(
         heatmap_alpha: Opacity of heatmap overlay
     """
     with tempfile.TemporaryDirectory() as temp_dir:
-        with zipfile.ZipFile(calibration_zip, 'r') as zip_ref:
+        with zipfile.ZipFile(calibration_zip, "r") as zip_ref:
             zip_ref.extractall(temp_dir)
 
         mapper = GazeMapper()
@@ -42,7 +44,7 @@ def process_gaze_data(
         print(f"Mapper training complete - R² scores: x={r2_x:.4f}, y={r2_y:.4f}")
 
         print("Generating gaze heatmap video...")
-        with zipfile.ZipFile(recording_zip, 'r') as zip_ref:
+        with zipfile.ZipFile(recording_zip, "r") as zip_ref:
             zip_ref.extractall(temp_dir)
 
         gaze_tracker = GazeTracker(mapper)
@@ -51,18 +53,27 @@ def process_gaze_data(
             screen_path=f"{temp_dir}/screen-recording.webm",
             output_path=output_path,
             heatmap_sigma=heatmap_sigma,
-            alpha=heatmap_alpha
+            alpha=heatmap_alpha,
         )
 
     print(f"\nProcessing complete! Heatmap video saved to: {output_path}")
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Process gaze tracking data end-to-end")
+    parser = argparse.ArgumentParser(
+        description="Process gaze tracking data end-to-end"
+    )
     parser.add_argument("recording_zip", help="Path to recording session zip file")
     parser.add_argument("calibration_zip", help="Path to calibration session zip file")
-    parser.add_argument("--output", "-o", default="gaze_heatmap.mkv", help="Output video path")
-    parser.add_argument("--heatmap-sigma", type=float, default=25, help="Heatmap blur sigma")
-    parser.add_argument("--heatmap-alpha", type=float, default=0.4, help="Heatmap opacity")
+    parser.add_argument(
+        "--output", "-o", default="gaze_heatmap.mkv", help="Output video path"
+    )
+    parser.add_argument(
+        "--heatmap-sigma", type=float, default=25, help="Heatmap blur sigma"
+    )
+    parser.add_argument(
+        "--heatmap-alpha", type=float, default=0.4, help="Heatmap opacity"
+    )
 
     args = parser.parse_args()
 
@@ -71,8 +82,9 @@ def main():
         args.calibration_zip,
         args.output,
         args.heatmap_sigma,
-        args.heatmap_alpha
+        args.heatmap_alpha,
     )
+
 
 if __name__ == "__main__":
     main()

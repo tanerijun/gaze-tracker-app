@@ -6,7 +6,6 @@ import os
 import cv2
 import numpy as np
 import requests
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,7 +14,9 @@ IMG_PATH = "image.jpg"
 ROBOFLOW_API_KEY = os.environ["ROBOFLOW_API_KEY"]
 DISTANCE_TO_OBJECT = 1000  # mm
 HEIGHT_OF_HUMAN_FACE = 250  # mm
-GAZE_DETECTION_URL = "http://127.0.0.1:9001/gaze/gaze_detection?api_key=" + ROBOFLOW_API_KEY
+GAZE_DETECTION_URL = (
+    "http://127.0.0.1:9001/gaze/gaze_detection?api_key=" + ROBOFLOW_API_KEY
+)
 
 
 def detect_gazes(frame: np.ndarray):
