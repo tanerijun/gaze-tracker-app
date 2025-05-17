@@ -60,7 +60,7 @@ def main():
     parser = argparse.ArgumentParser(description="Process gaze tracking data end-to-end")
     parser.add_argument("recording_zip", help="Path to recording session zip file")
     parser.add_argument("calibration_zip", help="Path to calibration session zip file")
-    parser.add_argument("--output", "-o", default="gaze_heatmap.mp4", help="Output video path")
+    parser.add_argument("--output", "-o", default="gaze_heatmap.mkv", help="Output video path")
     parser.add_argument("--heatmap-sigma", type=float, default=25, help="Heatmap blur sigma")
     parser.add_argument("--heatmap-alpha", type=float, default=0.4, help="Heatmap opacity")
 

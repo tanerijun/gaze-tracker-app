@@ -43,7 +43,7 @@ class GazeTracker:
         print(f"FPS: {fps}, {fpsWebcam}")
         print(f"Scaling factors: x={scale_x:.3f}, y={scale_y:.3f}")
 
-        fourcc = cv2.VideoWriter.fourcc(*'mp4v')
+        fourcc = cv2.VideoWriter.fourcc(*'VP90')
         out = cv2.VideoWriter(output_path, fourcc, max(fps, fpsWebcam), (frame_width, frame_height))
 
         heatmap = np.zeros((frame_height, frame_width), dtype=np.float32)
@@ -58,20 +58,15 @@ class GazeTracker:
             ret_webcam, webcam_frame = webcam.read()
             ret_screen, screen_frame = screen.read()
 
-            if not ret_webcam:
-                    print(f"Failed to read webcam frame at {frame_count}")
-            if not ret_screen:
-                print(f"Failed to read screen frame at {frame_count}")
-
             if not ret_webcam or not ret_screen:
-                print(f"Video ended at frame {frame_count}")
+                if not ret_webcam:
+                    print(f"Webcam stream ended at frame {frame_count}")
+                if not ret_screen:
+                    print(f"Screen stream ended at frame {frame_count}")
+                print(f"Stopping processing - one stream has ended")
                 break
 
             try:
-                if webcam_frame is None or screen_frame is None:
-                    print(f"Frame {frame_count}: None frame detected")
-                    continue
-
                 gaze_result, gaze_vector = self.gaze_estimator.process_frame(webcam_frame)
 
                 screen_coords = self.mapper.predict(gaze_vector)
