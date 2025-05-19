@@ -21,8 +21,9 @@ class GazeTracker:
         webcam_path: str,
         screen_path: str,
         output_path: str,
-        heatmap_sigma: float = 40,
-        alpha: float = 0.5,
+        heatmap_sigma: float,
+        alpha: float,
+        decay_factor: float,
     ) -> None:
         if self.mapper.screen_size is None:
             raise ValueError(
@@ -86,6 +87,7 @@ class GazeTracker:
                 if 0 <= x < frame_width and 0 <= y < frame_height:
                     heatmap[y, x] += 1
 
+                heatmap *= decay_factor
                 blurred = cv2.GaussianBlur(heatmap, (0, 0), heatmap_sigma)
                 normalized = cv2.normalize(blurred, None, 0, 255, cv2.NORM_MINMAX)  # type: ignore
                 heatmap_colored = cv2.applyColorMap(

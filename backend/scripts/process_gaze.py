@@ -14,8 +14,9 @@ def process_gaze_data(
     recording_zip: str,
     calibration_zip: str,
     output_path: str,
-    heatmap_sigma: float = 25,
-    heatmap_alpha: float = 0.4,
+    heatmap_sigma: float,
+    heatmap_alpha: float,
+    decay_factor: float,
 ) -> None:
     """
     End-to-end gaze data processing pipeline.
@@ -54,6 +55,7 @@ def process_gaze_data(
             output_path=output_path,
             heatmap_sigma=heatmap_sigma,
             alpha=heatmap_alpha,
+            decay_factor=decay_factor,
         )
 
     print(f"\nProcessing complete! Heatmap video saved to: {output_path}")
@@ -74,6 +76,9 @@ def main():
     parser.add_argument(
         "--heatmap-alpha", type=float, default=0.4, help="Heatmap opacity"
     )
+    parser.add_argument(
+        "--decay-factor", type=float, default=1, help="Heatmap decay factor"
+    )
 
     args = parser.parse_args()
 
@@ -83,6 +88,7 @@ def main():
         args.output,
         args.heatmap_sigma,
         args.heatmap_alpha,
+        args.decay_factor,
     )
 
 
